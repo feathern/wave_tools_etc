@@ -266,7 +266,7 @@ def build_emf_correlations(v1,b1,v2,b2,mfil_min=0, mfil_max=33,mmax=32,refilter=
     # index 2:  same, but for full v1b1-v2b2 at given m
     
     nm_fil = mfil_max-mfil_min+1
-    print('hmm: ', mfil_max, mstart, nm_fil)
+    print('hmm: ', mfil_min,mfil_max, nm_fil)
 
     nt = v1.shape[0]
     nx = v1.shape[1]
@@ -293,25 +293,35 @@ def build_emf_correlations(v1,b1,v2,b2,mfil_min=0, mfil_max=33,mmax=32,refilter=
         p1_fil_fft = 0*emf_fft
         p2_fil_fft = 0*emf_fft
 
-    pcorr = numpy.zeros((3,nm_fil,2*mmax+1),dtype='float64')
-    enrm_save = numpy.zeros(nm_fil)
+    pcorr = np.zeros((3,nm_fil,2*mmax+1),dtype='float64')
+    enrm_save = np.zeros(nm_fil)
 
     for j in range(nm_fil):
         mfil = j+mfil_min
         print('Filtering for m = ', mfil)
         # First, filter the emf
         emf_fil_fft[:,:] = 0+0j 
-        emf_fil_fft[:,mfil] = emf_fft[:,nm-mfil]
-        emf_fil_fft[:,mfil] = emf_fft[:,nm-mfil]
+        emf_fil_fft[:,mfil] = emf_fft[:,mfil]
+        emf_fil_fft[:,nm-mfil] = emf_fft[:,nm-mfil]
         emf_fil = np.fft.ifft2(emf_fil_fft).real  # This emf is filtered for the m under consideration
 
-        enrm = numpy.sum(emf_fil*emf_fil)
+        enrm = np.sum(emf_fil*emf_fil)
         enrm_save[j] = enrm
         
         bis = vis+mfil
-        for i, vi in enumerate(vis):
+        for i, vii in enumerate(vis):
 
-            bi = bis[i]
+            # Since we aren't shifting the arrays, we need to adjust the indices
+            vi1 = abs(vii)
+            bi1 = abs(bis[i])
+            
+            vi2 = nm-vi1
+            if (vi2 == nm):
+                vi2 = 0
+             
+            bi2 = nm-bi1
+            if (bi2 == nm):
+                bi2 = 0
 
             v1_fil_fft[:,:] = 0+0j
             v2_fil_fft[:,:] = 0+0j
@@ -320,17 +330,17 @@ def build_emf_correlations(v1,b1,v2,b2,mfil_min=0, mfil_max=33,mmax=32,refilter=
             
 
             # Copy spectra for v and B at wavenumbers vi and bi respectively
-            v1_fil_fft[:,vi] =  v1_fft[:,vi]
-            v2_fil_fft[:,vi] =  v2_fft[:,vi]
+            v1_fil_fft[:,vi1] =  v1_fft[:,vi1]
+            v2_fil_fft[:,vi1] =  v2_fft[:,vi1]
             
-            v1_fil_fft[:,nm-vi] =  v1_fft[:,nm-vi]
-            v2_fil_fft[:,nm-vi] =  v2_fft[:,nm-vi]
+            v1_fil_fft[:,vi2] =  v1_fft[:,vi2]
+            v2_fil_fft[:,vi2] =  v2_fft[:,vi2]
             
-            b1_fil_fft[:,bi] =  b1_fft[:,bi]
-            b2_fil_fft[:,bi] =  b2_fft[:,bi]
+            b1_fil_fft[:,bi1] =  b1_fft[:,bi1]
+            b2_fil_fft[:,bi1] =  b2_fft[:,bi1]
             
-            b1_fil_fft[:,nm-bi] =  b1_fft[:,nm-bi]
-            b2_fil_fft[:,nm-bi] =  b2_fft[:,nm-bi]            
+            b1_fil_fft[:,bi2] =  b1_fft[:,bi2]
+            b2_fil_fft[:,bi2] =  b2_fft[:,bi2]            
                         
             #Compute contribution of combo vi, bi to the emf
                 
@@ -339,7 +349,7 @@ def build_emf_correlations(v1,b1,v2,b2,mfil_min=0, mfil_max=33,mmax=32,refilter=
             b1_fil = np.fft.ifft2(b1_fil_fft).real   
             b2_fil = np.fft.ifft2(b2_fil_fft).real
                 
-            label = 'b (m = '+str(bi)+') ;  v (m = '+str(vi)+')'
+            label = 'b (m = '+str(bi1)+') ;  v (m = '+str(vi1)+')'
             
            
             p1 = v1_fil*b1_fil
@@ -374,10 +384,10 @@ def build_emf_correlations(v1,b1,v2,b2,mfil_min=0, mfil_max=33,mmax=32,refilter=
                 print(label)
 
 
-            pcorr[0,j,i] = numpy.sum(p1*emf_fil)/enrm
-            pcorr[1,j,i] = numpy.sum(p2*emf_fil)/enrm
+            pcorr[0,j,i] = np.sum(p1*emf_fil)/enrm
+            pcorr[1,j,i] = np.sum(p2*emf_fil)/enrm
             p1+=p2
-            pcorr[2,j,i] = numpy.sum(p1*emf_fil)/enrm    
+            pcorr[2,j,i] = np.sum(p1*emf_fil)/enrm    
         
     return pcorr, enrm_save
 

@@ -3,12 +3,27 @@ import numpy
 import numpy as np
 
 
-def class tlon():
+class tlon():
     
-    def __init__(self,filename):
+    def __init__(self,infile):
         with open(infile, 'rb') as file:
             # Load the data from the pickle file
-            data_tuple = pickle.load(file)
+            data = pickle.load(file)
+
+        self.vals = data[0]
+        self.time = data[1]
+        self.iters = data[2]
+        self.target_lat = data[3]
+        self.rindex = data[4]
+        self.qindex = data[5]
+        self.sintheta = data[6]
+        self.radius = data[7]
+        self.rsintheta = data[8]
+        
+        theta_abs = np.arcsin(self.sintheta) # Absolute value of theta, due to how arcsin is defined
+        lat = (90-theta_abs*180/np.pi)*np.sign(self.target_lat) 
+        
+        self.lat = lat
 
 def read_tlon(idir,q,r,suffix):
     qstr = str(q)
