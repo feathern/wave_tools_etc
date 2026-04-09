@@ -1,4 +1,15 @@
 import pickle
+import numpy
+import numpy as np
+
+
+def class tlon():
+    
+    def __init__(self,filename):
+        with open(infile, 'rb') as file:
+            # Load the data from the pickle file
+            data_tuple = pickle.load(file)
+
 def read_tlon(idir,q,r,suffix):
     qstr = str(q)
     rstr = str(r)

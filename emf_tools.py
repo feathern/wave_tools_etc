@@ -68,7 +68,7 @@ def bplot(arr,ax,mval,nplot=5,margin=0.2):
     ax.set_ylim([ymin,ymax])
     
 
-def quad_plot(emfc,enrmc,mval,icomp,ax):
+def quad_plot(emfc,enrmc,mval,icomp,ax,nplot=5):
     vtBp = r'$v_\theta B_\phi$'
     vpBt = r'$v_\phi B_\theta$'
     
@@ -99,7 +99,7 @@ def quad_plot(emfc,enrmc,mval,icomp,ax):
     for i in range(2):
         for j in range(2):
             nrm=enrmc[inds[i]][mval]/np.max(enrmc)
-            bplot(emfc[inds[i]][j,mval,:]*nrm, ax[i][j],mval)
+            bplot(emfc[inds[i]][j,mval,:]*nrm, ax[i][j],mval,nplot=nplot)
             ax[i][j].set_title(names[i][j])
     #bplot(ax[0][1], emfc[inds[0][1,mval,:])
      
@@ -107,7 +107,7 @@ def quad_plot(emfc,enrmc,mval,icomp,ax):
                          
     #bplot(ax[1][1], emfc[inds[1][1,mval,:])
                          
-def build_emf(data_tuple,iv1,ib1,iv2,ib2,remove_dr=False,mmax=32,mfil_max=33,refilter=False, mstart=0):
+def build_emf_correlations0(data_tuple,iv1,ib1,iv2,ib2,remove_dr=False,mmax=32,mfil_max=33,refilter=False, mstart=0):
     # Total emf = v1*b1-v2*b2
     # iv1,ib1,iv2,ib2 indicate the indices of v and b to use 
     # (0,1,2 = vr,vtheta,phi; 3,4,5 = br,btheta,bphi)
@@ -251,7 +251,137 @@ def build_emf(data_tuple,iv1,ib1,iv2,ib2,remove_dr=False,mmax=32,mfil_max=33,ref
             pcorr[2,j,i] = numpy.sum(p1*emf_fil)/enrm    
         
     return pcorr, enrm_save
-                                    
+
+def build_emf_correlations(v1,b1,v2,b2,mfil_min=0, mfil_max=33,mmax=32,refilter=False):
+    # computes correlation matrix for  v1*b1-v2*b2
+    # v1,v2,b1,b2 are dimensioned [time,space]
+    # 
+    # mfil_min:  the minimum m-value to filter for
+    # mfil_max:  the maximum m-value to filter for
+    # mmax :  the maximum absolute value of m to consider 
+    #         the range of m-values considered is [-mmax : mmax ]
+    # Returns correlation matrix dimensioned:  [3,0:mfil_max-mfil_min+1, 0: 1+2*mmax]
+    # index 0:  projection of v1*b1 at given m1,m2 onto filtered v1b2-v2*b2
+    # index 1:  same, but for -v2b2
+    # index 2:  same, but for full v1b1-v2b2 at given m
+    
+    nm_fil = mfil_max-mfil_min+1
+    print('hmm: ', mfil_max, mstart, nm_fil)
+
+    nt = v1.shape[0]
+    nx = v1.shape[1]
+    nm = nx
+
+    vis=np.arange(-mmax,mmax+1)
+
+    # Compute the Full EMF, its FFT, and the FFTs of v1,B1, v2 and B2
+    emf = v1[:,:]*b1[:,:] - v2[:,:]*b2[:,:] # The full emf for this vB pair -- unfiltered
+    emf_fft = np.fft.fft2(emf) # And its FFT
+    emf_fil_fft = 0*emf_fft
+
+    v1_fft = np.fft.fft2(v1)
+    v2_fft = np.fft.fft2(v2)
+    b1_fft = np.fft.fft2(b1)
+    b2_fft = np.fft.fft2(b2)
+    
+    v1_fil_fft = 0*v1_fft
+    v2_fil_fft = 0*v2_fft    
+    b1_fil_fft = 0*b1_fft
+    b2_fil_fft = 0*b2_fft        
+    
+    if (refilter==True):
+        p1_fil_fft = 0*emf_fft
+        p2_fil_fft = 0*emf_fft
+
+    pcorr = numpy.zeros((3,nm_fil,2*mmax+1),dtype='float64')
+    enrm_save = numpy.zeros(nm_fil)
+
+    for j in range(nm_fil):
+        mfil = j+mfil_min
+        print('Filtering for m = ', mfil)
+        # First, filter the emf
+        emf_fil_fft[:,:] = 0+0j 
+        emf_fil_fft[:,mfil] = emf_fft[:,nm-mfil]
+        emf_fil_fft[:,mfil] = emf_fft[:,nm-mfil]
+        emf_fil = np.fft.ifft2(emf_fil_fft).real  # This emf is filtered for the m under consideration
+
+        enrm = numpy.sum(emf_fil*emf_fil)
+        enrm_save[j] = enrm
+        
+        bis = vis+mfil
+        for i, vi in enumerate(vis):
+
+            bi = bis[i]
+
+            v1_fil_fft[:,:] = 0+0j
+            v2_fil_fft[:,:] = 0+0j
+            b1_fil_fft[:,:] = 0+0j
+            b2_fil_fft[:,:] = 0+0j
+            
+
+            # Copy spectra for v and B at wavenumbers vi and bi respectively
+            v1_fil_fft[:,vi] =  v1_fft[:,vi]
+            v2_fil_fft[:,vi] =  v2_fft[:,vi]
+            
+            v1_fil_fft[:,nm-vi] =  v1_fft[:,nm-vi]
+            v2_fil_fft[:,nm-vi] =  v2_fft[:,nm-vi]
+            
+            b1_fil_fft[:,bi] =  b1_fft[:,bi]
+            b2_fil_fft[:,bi] =  b2_fft[:,bi]
+            
+            b1_fil_fft[:,nm-bi] =  b1_fft[:,nm-bi]
+            b2_fil_fft[:,nm-bi] =  b2_fft[:,nm-bi]            
+                        
+            #Compute contribution of combo vi, bi to the emf
+                
+            v1_fil = np.fft.ifft2(v1_fil_fft).real   
+            v2_fil = np.fft.ifft2(v2_fil_fft).real  
+            b1_fil = np.fft.ifft2(b1_fil_fft).real   
+            b2_fil = np.fft.ifft2(b2_fil_fft).real
+                
+            label = 'b (m = '+str(bi)+') ;  v (m = '+str(vi)+')'
+            
+           
+            p1 = v1_fil*b1_fil
+            p2 = -v2_fil*b2_fil
+            
+            ##################################
+            # Probably need to filter p1 and p2 for m = mfil due to how things were done above...
+            if (refilter==True):
+                p1_fft = np.fft.fft2(p1) 
+                p1_fft = np.fft.fftshift(p1_fft,axes=(1)) # shifted so m=0 is centered
+                
+                p2_fft = np.fft.fft2(p2) 
+                p2_fft = np.fft.fftshift(p2_fft,axes=(1)) # shifted so m=0 is centered
+                
+                p1_fil_fft[:,:] = 0+0j
+                p2_fil_fft[:,:] = 0+0j
+                
+                p1_fil_fft[:,nm//2+mfil] = p1_fft[:,nm//2+mfil]
+                p1_fil_fft[:,nm//2-mfil] = p1_fft[:,nm//2-mfil]
+                
+                p2_fil_fft[:,nm//2+mfil] = p2_fft[:,nm//2+mfil]
+                p2_fil_fft[:,nm//2-mfil] = p2_fft[:,nm//2-mfil]                
+                
+                p1_fil_fft = np.fft.fftshift(p1_fil_fft,axes=(1))
+                p1 = np.fft.ifft2(p1_fil_fft).real  
+                
+                p2_fil_fft = np.fft.fftshift(p2_fil_fft,axes=(1))
+                p2 = np.fft.ifft2(p2_fil_fft).real                
+            
+            ptot = p1+p2
+            if (i%16==0):
+                print(label)
+
+
+            pcorr[0,j,i] = numpy.sum(p1*emf_fil)/enrm
+            pcorr[1,j,i] = numpy.sum(p2*emf_fil)/enrm
+            p1+=p2
+            pcorr[2,j,i] = numpy.sum(p1*emf_fil)/enrm    
+        
+    return pcorr, enrm_save
+
+
 def call_build_emf_example():
     # Just for reference
     import numpy as np
