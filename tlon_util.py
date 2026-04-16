@@ -19,11 +19,20 @@ class tlon():
         self.sintheta = data[6]
         self.radius = data[7]
         self.rsintheta = data[8]
+        self.nt = len(self.time)
+        self.nlat = len(self.sintheta)
         
         theta_abs = np.arcsin(self.sintheta) # Absolute value of theta, due to how arcsin is defined
         lat = (90-theta_abs*180/np.pi)*np.sign(self.target_lat) 
         
         self.lat = lat
+        
+        nphi = self.vals.shape[2]
+        dlon=360/nphi
+        self.lon = np.arange(nphi)*dlon
+        dphi = 2*np.pi/nphi
+        self.phi = np.arange(nphi)*dphi        
+        
 
 def read_tlon(idir,q,r,suffix):
     qstr = str(q)
@@ -65,7 +74,7 @@ def filter1d(f,g,time):
     
 def view_tlon(tlon_in,time,lon,ax,remove_mean=True,scale_factor=1.5,
               color_map='RdYlBu_r',time_units='',q_units='',fig=None,
-              reference_slope=None, tmax=None):
+              reference_slope=None, tmax=None,title='',ylim=None):
 
     tlon = tlon_in[:,:]
     nt = len(time)
@@ -103,4 +112,10 @@ def view_tlon(tlon_in,time,lon,ax,remove_mean=True,scale_factor=1.5,
     if (fig != None):
         fig.colorbar(im,ax=ax, label=q_units,pad=0.08,location='bottom')
 
-    ax.set_ylim([time[0],tmax])
+    if (ylim == None):
+        ax.set_ylim([time[0],tmax])
+    else:
+        ax.set_ylim(ylim)
+        
+    ax.set_title(title)
+    
